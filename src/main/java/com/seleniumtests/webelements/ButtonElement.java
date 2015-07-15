@@ -29,20 +29,17 @@ public class ButtonElement extends HtmlElement {
 
     @Override
     public void click() {
-        captureSnapshot("Before clicking");
         TestLogging.logWebStep(null, "click on " + toHTML(), false);
 
-        BrowserType browser = WebUIDriver.getWebUXDriver().getConfig().getBrowser();
+        BrowserType browser = WebUIDriver.getWebUIDriver().getConfig().getBrowser();
         if (browser == BrowserType.InternetExplore) {
-            super.sendKeys(Keys.ENTER); // not stable on IE9
-            super.handleLeaveAlert();
+            super.sendKeys(Keys.ENTER);
         } else {
             super.click();
         }
     }
 
     public void submit() {
-        captureSnapshot("Before form submission");
         TestLogging.logWebStep(null, "Submit form by clicking on " + toHTML(), false);
         findElement();
         element.submit();

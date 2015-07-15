@@ -15,8 +15,6 @@ package com.seleniumtests.webpage;
 
 import org.openqa.selenium.By;
 
-import com.seleniumtests.core.CustomAssertion;
-
 import com.seleniumtests.webelements.LinkElement;
 import com.seleniumtests.webelements.PageObject;
 import com.seleniumtests.webelements.SelectList;
@@ -28,10 +26,10 @@ import com.seleniumtests.webelements.SelectList;
  */
 public class AdminHomePage extends PageObject {
 
-    private static SelectList documentationDropDown = new SelectList("Documentation drop down", By.name("docs"));
+    private static SelectList testPLanDropDown = new SelectList("Documentation drop down", By.name("testplan"));
 
     public AdminHomePage() throws Exception {
-        super(); // No check on page identification
+        // No check on page identification
     }
 
     private LinkElement testProjectManagementLink = new LinkElement("Test Project Management LinkElement",
@@ -61,20 +59,13 @@ public class AdminHomePage extends PageObject {
         return this;
     }
 
-    public AdminHomePage verifyDocumentationDropDown() {
+    public boolean isTestPlanDropdownDisplayed() {
         switchToTestLinkFrame();
         switchToMainFrame();
-        CustomAssertion.assertTrue(documentationDropDown.isDisplayed(), "Documentation drop down is missing");
-        getDriver().switchTo().defaultContent();
-        return this;
-    }
 
-    public AdminHomePage verifyDocumentationDropDownFail() {
-        switchToTestLinkFrame();
-        switchToMainFrame();
-        CustomAssertion.assertTrue(!documentationDropDown.isDisplayed(), "Documentation drop down is missing");
+        boolean isDisplayed = testPLanDropDown.isElementPresent();
         getDriver().switchTo().defaultContent();
-        return this;
+        return isDisplayed;
     }
 
     public TestProjectManagementPage clickTestProjectManagementLink() throws Exception {

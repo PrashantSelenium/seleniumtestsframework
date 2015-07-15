@@ -32,6 +32,7 @@ import java.net.URL;
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,6 +82,8 @@ import com.seleniumtests.core.TestLogging;
 import com.seleniumtests.core.TestRetryAnalyzer;
 
 import com.seleniumtests.driver.ScreenShot;
+import com.seleniumtests.driver.ScreenshotUtil;
+import com.seleniumtests.driver.WebUIDriver;
 
 import com.seleniumtests.helper.StringUtility;
 
@@ -157,7 +160,6 @@ public class SeleniumTestsReporter implements IReporter, ITestListener, IInvoked
     private Map<String, IResultMap> failedTests = new HashMap<String, IResultMap>();
 
     private Map<String, IResultMap> skippedTests = new HashMap<String, IResultMap>();
-    private String m_root = "resources/images/mktree/";
     protected PrintWriter m_out;
 
     private String uuid = new GregorianCalendar().getTime().toString();
@@ -180,15 +182,6 @@ public class SeleniumTestsReporter implements IReporter, ITestListener, IInvoked
 
     public void afterInvocation(final IInvokedMethod method, final ITestResult result) {
         Reporter.setCurrentTestResult(result);
-
-        ScreenShot screenShot = SeleniumTestsContextManager.getThreadContext().getExceptionScreenShot();
-
-        // Handle Last Exception for only failed test cases
-        if (!result.isSuccess() && SeleniumTestsContextManager.getThreadContext() != null && screenShot != null) {
-            TestLogging.log(
-                "<div><table><tr bgcolor=\"yellow\"><td><b> Current web page screenshot with webdriver Exception --</b><td></tr></table></div>");
-            TestLogging.logWebOutput(screenShot.getTitle(), TestLogging.buildScreenshotLog(screenShot), true);
-        }
 
         // Handle Soft CustomAssertion
         if (method.isTestMethod()) {
@@ -311,8 +304,7 @@ public class SeleniumTestsReporter implements IReporter, ITestListener, IInvoked
         }
     }
 
-    protected PrintWriter createWriter(final String outDir) throws IOException, FileNotFoundException,
-        FileNotFoundException {
+    protected PrintWriter createWriter(final String outDir) throws IOException, FileNotFoundException {
         System.setProperty("file.encoding", "UTF8");
         uuid = uuid.replaceAll(" ", "-").replaceAll(":", "-");
 
@@ -834,7 +826,9 @@ public class SeleniumTestsReporter implements IReporter, ITestListener, IInvoked
             VelocityContext context = new VelocityContext();
             context.put("suiteName", suiteName);
             context.put("totalRunTime", formatter.format((time_end - time_start) / 1000.) + " sec");
-            context.put("TimeStamp", new GregorianCalendar().getTime());
+
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEE dd MMM HH:mm:ss zzz yyyy");
+            context.put("TimeStamp", simpleDateFormat.format(new GregorianCalendar().getTime()));
             context.put("tests", tests2);
             context.put("total", total);
 
@@ -891,23 +885,6 @@ public class SeleniumTestsReporter implements IReporter, ITestListener, IInvoked
         }
 
         return dim;
-    }
-
-    public int getEnvConfigTestsCount(final IResultMap map) {
-        int count = 0;
-        for (ITestNGMethod tm : map.getAllMethods()) {
-            String[] groups = tm.getGroups();
-            if (groups != null) {
-                for (int i = 0; i < groups.length; i++) {
-                    if ("envt".equalsIgnoreCase(groups[i])) {
-                        count++;
-                        break;
-                    }
-                }
-            }
-        }
-
-        return count;
     }
 
     protected ITestResult getFailedOrSkippedResult(final ITestContext ctx, final ITestNGMethod method) {
@@ -1108,6 +1085,12 @@ public class SeleniumTestsReporter implements IReporter, ITestListener, IInvoked
             System.out.println(arg0.getMethod() + " Failed in " + testRetryAnalyzer.getCount() + " times");
             isRetryHandleNeeded.put(arg0.getTestContext().getName(), true);
         }
+
+        // capture snap shot only for the failed web tests
+        if (WebUIDriver.getWebDriver() != null) {
+            ScreenShot screenShot = new ScreenshotUtil().captureWebPageSnapshot();
+            TestLogging.logWebOutput(screenShot.getTitle(), TestLogging.buildScreenshotLog(screenShot), true);
+        }
     }
 
     public void onTestSkipped(final ITestResult arg0) { }
@@ -1272,6 +1255,7 @@ public class SeleniumTestsReporter implements IReporter, ITestListener, IInvoked
                 }
 
                 String img = "<img src=\"";
+                String m_root = "resources/images/mktree/";
                 img += m_root + "/test" + getFailedOrSkippedResult(ctx, m).getStatus() + ".gif";
                 img += "\"/>";
 
@@ -1312,6 +1296,7 @@ public class SeleniumTestsReporter implements IReporter, ITestListener, IInvoked
                 }
 
                 String img = "<img src=\"";
+                String m_root = "resources/images/mktree/";
                 img += m_root + "/test" + getFailedOrSkippedResult(ctx, m).getStatus() + ".gif";
                 img += "\"/>";
                 res.append(intendstr + "<li>" + img + m);

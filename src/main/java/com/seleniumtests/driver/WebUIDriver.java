@@ -29,7 +29,6 @@ import com.seleniumtests.browserfactory.FirefoxDriverFactory;
 import com.seleniumtests.browserfactory.HtmlUnitDriverFactory;
 import com.seleniumtests.browserfactory.IEDriverFactory;
 import com.seleniumtests.browserfactory.IWebDriverFactory;
-import com.seleniumtests.browserfactory.OperaDriverFactory;
 import com.seleniumtests.browserfactory.RemoteDriverFactory;
 import com.seleniumtests.browserfactory.SafariDriverFactory;
 
@@ -44,6 +43,9 @@ public class WebUIDriver {
     private static ThreadLocal<WebDriver> driverSession = new ThreadLocal<WebDriver>();
     private static ThreadLocal<WebUIDriver> uxDriverSession = new ThreadLocal<WebUIDriver>();
     private String node;
+    private DriverConfig config = new DriverConfig();
+    private WebDriver driver;
+    private IWebDriverFactory webDriverBuilder;
 
     public String getNode() {
         return node;
@@ -54,9 +56,9 @@ public class WebUIDriver {
     }
 
     public static void cleanUp() {
-        IWebDriverFactory b = getWebUXDriver().webDriverBuilder;
-        if (b != null) {
-            b.cleanUp();
+        IWebDriverFactory iWebDriverFactory = getWebUIDriver().webDriverBuilder;
+        if (iWebDriverFactory != null) {
+            iWebDriverFactory.cleanUp();
         } else {
             WebDriver driver = driverSession.get();
             if (driver != null) {
@@ -75,7 +77,7 @@ public class WebUIDriver {
     }
 
     /**
-     * Get native WebDriver which can be converted to RemoteWebDriver.
+     * Returns native WebDriver which can be converted to RemoteWebDriver.
      *
      * @return  webDriver
      */
@@ -92,21 +94,31 @@ public class WebUIDriver {
         return getWebDriver(false);
     }
 
+    /**
+     * Returns WebDriver instance Creates a new WebDriver Instance if it is null and isCreate is true.
+     *
+     * @param   isCreate  create webdriver or not
+     *
+     * @return
+     */
     public static WebDriver getWebDriver(final Boolean isCreate) {
         if (driverSession.get() == null && isCreate) {
             try {
-                getWebUXDriver().createWebDriver();
+                getWebUIDriver().createWebDriver();
             } catch (Exception e) {
-                System.out.println("Capture customexception when create web driver");
                 e.printStackTrace();
-                throw new RuntimeException(e);
             }
         }
 
         return driverSession.get();
     }
 
-    public static WebUIDriver getWebUXDriver() {
+    /**
+     * Returns WebUIDriver instance Creates new WebUIDriver instance if it is null.
+     *
+     * @return
+     */
+    public static WebUIDriver getWebUIDriver() {
         if (uxDriverSession.get() == null) {
             uxDriverSession.set(new WebUIDriver());
         }
@@ -114,21 +126,22 @@ public class WebUIDriver {
         return uxDriverSession.get();
     }
 
+    /**
+     * Lets user set their own driver This can be retrieved as WebUIDriver.getWebDriver().
+     *
+     * @param  driver
+     */
     public static void setWebDriver(final WebDriver driver) {
         if (driver == null) {
             driverSession.remove();
         } else {
-            if (getWebUXDriver() == null) {
+            if (getWebUIDriver() == null) {
                 new WebUIDriver();
             }
 
             driverSession.set(driver);
         }
     }
-
-    private DriverConfig config = new DriverConfig();
-    private WebDriver driver;
-    private IWebDriverFactory webDriverBuilder;
 
     public WebUIDriver() {
         init();
@@ -176,8 +189,6 @@ public class WebUIDriver {
                                                                 "com.seleniumtests.browserfactory.IPadDriverFactory")
                                                             .getConstructor(DriverConfig.class).newInstance(
                                                                 this.config);
-            } else if (config.getBrowser() == BrowserType.Opera) {
-                webDriverBuilder = new OperaDriverFactory(this.config);
             } else {
                 throw new RuntimeException("Unsupported browser" + browser);
             }
@@ -187,22 +198,12 @@ public class WebUIDriver {
             driver = webDriverBuilder.createWebDriver();
         }
 
-        /*if (config.getBrowserWindowWidth() > 0 && config.getBrowserWindowHeight() > 0){
-         *              new WebUtility(driver).resizeWindow(config.getBrowserWindowWidth(),
-         * config.getBrowserWindowHeight());
-         *      } else {
-         *              new WebUtility(driver).maximizeWindow();
-         *      }*/
         driver = handleListeners(driver);
 
         return driver;
     }
 
     protected WebDriver handleListeners(WebDriver driver) {
-
-        // driver = new EventFiringWebDriver(driver).register(new
-        // DriverExceptionListener());
-        // Support customized listeners
         ArrayList<WebDriverEventListener> listeners = config.getWebDriverListeners();
         if (listeners != null && listeners.size() > 0) {
             for (int i = 0; i < config.getWebDriverListeners().size(); i++) {
@@ -230,7 +231,7 @@ public class WebUIDriver {
     }
 
     public String getPlatform() {
-        return config.getPlatform().name();
+        return config.getWebPlatform().name();
     }
 
     public String getBrowserVersion() {
@@ -374,9 +375,9 @@ public class WebUIDriver {
         String browserVersion = SeleniumTestsContextManager.getThreadContext().getWebBrowserVersion();
         config.setBrowserVersion(browserVersion);
 
-        String platform = SeleniumTestsContextManager.getThreadContext().getPlatform();
-        if (platform != null) {
-            config.setPlatform(Platform.valueOf(platform));
+        String webPlatform = SeleniumTestsContextManager.getThreadContext().getWebPlatform();
+        if (webPlatform != null) {
+            config.setWebPlatform(Platform.valueOf(webPlatform));
         }
 
         if ("false".equalsIgnoreCase(
@@ -430,7 +431,7 @@ public class WebUIDriver {
             listeners = listeners + DriverExceptionListener.class.getName();
         }
 
-        if (listeners != null && listeners != "") {
+        if (listeners != null && !listeners.equals("")) {
             config.setWebDriverListeners(listeners);
         } else {
             config.setWebDriverListeners("");
@@ -450,6 +451,30 @@ public class WebUIDriver {
             config.setBrowserWindowWidth(width);
             config.setBrowserWindowHeight(height);
         }
+
+        String appiumServerURL = SeleniumTestsContextManager.getThreadContext().getAppiumServerURL();
+        config.setAppiumServerURL(appiumServerURL);
+
+        String automationName = SeleniumTestsContextManager.getThreadContext().getAutomationName();
+        config.setAutomationName(automationName);
+
+        String mobilePlatformName = SeleniumTestsContextManager.getThreadContext().getMobilePlatformName();
+        config.setMobilePlatformVersion(mobilePlatformName);
+
+        String mobilePlatformVersion = SeleniumTestsContextManager.getThreadContext().getMobilePlatformVersion();
+        config.setMobilePlatformVersion(mobilePlatformVersion);
+
+        String deviceName = SeleniumTestsContextManager.getThreadContext().getDeviceName();
+        config.setDeviceName(deviceName);
+
+        String app = SeleniumTestsContextManager.getThreadContext().getApp();
+        config.setApp(app);
+
+        String browserName = SeleniumTestsContextManager.getThreadContext().getBrowserName();
+        config.setBrowserName(browserName);
+
+        String newCommandTimeOut = SeleniumTestsContextManager.getThreadContext().getNewCommandTimeout();
+        config.setNewCommandTimeout(newCommandTimeOut);
     }
 
     public static void main(final String[] args) {
@@ -490,7 +515,7 @@ public class WebUIDriver {
     }
 
     public void setPlatform(final String platform) {
-        config.setPlatform(Platform.valueOf(platform));
+        config.setWebPlatform(Platform.valueOf(platform));
     }
 
     public void setChromeBinPath(final String chromeBinPath) {
@@ -568,5 +593,4 @@ public class WebUIDriver {
     public void setWebSessionTimeout(final int webSessionTimeout) {
         config.setWebSessionTimeout(webSessionTimeout);
     }
-
 }

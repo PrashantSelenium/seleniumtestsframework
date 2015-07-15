@@ -36,22 +36,22 @@ import com.seleniumtests.helper.XMLUtility;
  */
 public class SeleniumTestsContextManager {
 
-    // Customized Contex Attribute
-    private static List<IContextAttributeListener> contexAttributeListenerList = Collections.synchronizedList(
+    // context listener
+    private static List<IContextAttributeListener> contextAttributeListeners = Collections.synchronizedList(
             new ArrayList<IContextAttributeListener>());
 
-    // define the global level context
+    // global level context
     private static SeleniumTestsContext globalContext;
 
-    // define the test level context
+    // test level context
     private static Map<String, SeleniumTestsContext> testLevelContext = Collections.synchronizedMap(
             new HashMap<String, SeleniumTestsContext>());
 
-    // define the thread level SeleniumTestsContext
+    // thread level SeleniumTestsContext
     private static ThreadLocal<SeleniumTestsContext> threadLocalContext = new ThreadLocal<SeleniumTestsContext>();
 
-    public static void addContexAttributeListener(final IContextAttributeListener listener) {
-        contexAttributeListenerList.add(listener);
+    public static void addContextAttributeListener(final IContextAttributeListener listener) {
+        contextAttributeListeners.add(listener);
     }
 
     public static SeleniumTestsContext getGlobalContext() {
@@ -66,9 +66,6 @@ public class SeleniumTestsContextManager {
     public static SeleniumTestsContext getTestLevelContext(final ITestContext testContext) {
         if (testContext != null && testContext.getCurrentXmlTest() != null) {
             if (testLevelContext.get(testContext.getCurrentXmlTest().getName()) == null) {
-
-                // sometimes getTestLevelContext is called before @BeforeTest in
-                // SeleniumTestPlan
                 initTestLevelContext(testContext, testContext.getCurrentXmlTest());
             }
 
@@ -97,25 +94,34 @@ public class SeleniumTestsContextManager {
         loadCustomizedContextAttribute(testNGCtx, globalContext);
     }
 
-    private static ITestContext getContextFromConfigFile(final ITestContext testContex) {
-        if (testContex != null) {
-            if (testContex.getSuite().getParameter(SeleniumTestsContext.TEST_CONFIGURATION) != null) {
-                File suiteFile = new File(testContex.getSuite().getXmlSuite().getFileName());
+    /**
+     * @param   iTestContext
+     *
+     * @return  iTestContext having parameters set from external config file
+     */
+    private static ITestContext getContextFromConfigFile(final ITestContext iTestContext) {
+        if (iTestContext != null) {
+
+            // "testConfig" parameter can be define in testng.xml file
+            // This parameter points to a config xml file which defines test configuration parameters
+            // Hence testng.xml file can focus on test
+            if (iTestContext.getSuite().getParameter(SeleniumTestsContext.TEST_CONFIGURATION) != null) {
+                File suiteFile = new File(iTestContext.getSuite().getXmlSuite().getFileName());
                 String configFile = suiteFile.getPath().replace(suiteFile.getName(), "")
-                        + testContex.getSuite().getParameter("testConfig");
+                        + iTestContext.getSuite().getParameter("testConfig");
                 NodeList nList = XMLUtility.getXMLNodes(configFile, "parameter");
-                Map<String, String> parameters = testContex.getSuite().getXmlSuite().getParameters();
+                Map<String, String> parameters = iTestContext.getSuite().getXmlSuite().getParameters();
                 for (int i = 0; i < nList.getLength(); i++) {
                     Node nNode = nList.item(i);
                     parameters.put(nNode.getAttributes().getNamedItem("name").getNodeValue(),
                         nNode.getAttributes().getNamedItem("value").getNodeValue());
                 }
 
-                testContex.getSuite().getXmlSuite().setParameters(parameters);
+                iTestContext.getSuite().getXmlSuite().setParameters(parameters);
             }
         }
 
-        return testContex;
+        return iTestContext;
     }
 
     public static void initTestLevelContext(final ITestContext testNGCtx, final XmlTest xmlTest) {
@@ -173,8 +179,8 @@ public class SeleniumTestsContextManager {
 
     private static void loadCustomizedContextAttribute(final ITestContext testNGCtx,
             final SeleniumTestsContext seleniumTestsCtx) {
-        for (int i = 0; i < contexAttributeListenerList.size(); i++) {
-            contexAttributeListenerList.get(i).load(testNGCtx, seleniumTestsCtx);
+        for (int i = 0; i < contextAttributeListeners.size(); i++) {
+            contextAttributeListeners.get(i).load(testNGCtx, seleniumTestsCtx);
         }
     }
 
